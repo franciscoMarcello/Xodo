@@ -23,7 +23,7 @@ export default function EnergyPage() {
   return (
     <>
       <h1>Gasto de energia</h1>
-      <p className="sub">Estimativa enquanto o app está aberto (deixe-o na bandeja para medir o dia todo).{!status?.lhm && ' Sem o LibreHardwareMonitor, CPU e GPU são estimadas pelo uso.'}</p>
+      <p className="sub">Estimativa enquanto o app está aberto (deixe-o na bandeja para medir o dia todo).{!status?.lhm && ' Sem os sensores (Ajustes), CPU e GPU são estimadas pelo uso.'}</p>
       <div className="grid">
         <Tile label="Agora" value={status ? `${status.watts} W` : '–'} detail={status ? `${brl((status.watts / 1000) * tariff)} por hora` : undefined} />
         <Tile label="Hoje" value={money(e.data.todayWh)} detail={`${kwh(e.data.todayWh)}${today ? ` · ${duration(today.seconds * 1000)} medidos` : ''}`} />

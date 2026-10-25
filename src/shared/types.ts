@@ -155,6 +155,9 @@ export interface AlertsView { open: Alert[]; muted: Alert[]; resolved: Alert[]; 
 export interface Disk { mount: string; total: number; free: number }
 export interface FolderSize { name: string; path: string; size: number; files: number; done: boolean }
 export interface BigFile { path: string; size: number; modified: number }
+/** Pasta (com children) ou arquivo; `more` = bloco que junta vários itens pequenos. */
+export interface TreeNode { name: string; size: number; children?: TreeNode[]; more?: number }
+export interface DiskTree { root: string; tree: TreeNode; files: number; done: boolean }
 export interface Program { name: string; publisher: string; size: number; installed: string }
 export interface TempInfo { path: string; size: number; files: number }
 
@@ -179,6 +182,18 @@ export interface Proc { pid: number; name: string; ram: number; cpu: number | nu
 export interface ProcessList { time: number; procs: Proc[]; ramTotal: number; ramUsed: number }
 export interface SelfWeight { ram: number; cpu: number; processes: number }
 
+export interface SensorsInfo {
+  /** De onde vêm os sensores agora: leitor do Xodó, LibreHardwareMonitor ou nenhum. */
+  source: 'xodo' | 'lhm' | null
+  /** Leitor do Xodó rodando como administrador (sem isso, nada de temperatura da CPU nem saúde dos discos). */
+  admin: boolean | null
+  cpuTemp: boolean
+  /** O leitor veio nesta instalação / está instalado (pasta + tarefa) / a cópia instalada é de outra versão. */
+  bundled: boolean
+  installed: boolean
+  outdated: boolean
+}
+
 export interface Api {
   getSettings(): Promise<Settings>
   saveSettings(s: Settings): Promise<Settings>
@@ -186,6 +201,7 @@ export interface Api {
   disks(): Promise<Disk[]>
   folderSizes(): Promise<FolderSize[]>
   bigFiles(folder: string): Promise<BigFile[]>
+  diskTree(folder: string): Promise<DiskTree>
   pickFolder(): Promise<string | null>
   showInFolder(path: string): Promise<void>
   trash(path: string): Promise<void>
@@ -202,8 +218,12 @@ export interface Api {
   energy(): Promise<EnergySummary>
   gameSessions(): Promise<GameSession[]>
   toggleWidget(): Promise<boolean>
-  /** Roda a tarefa agendada do LibreHardwareMonitor. false = tarefa não existe ou não deu para iniciar. */
+  /** Roda a tarefa agendada do leitor de sensores (ou a do LibreHardwareMonitor). false = tarefa não existe. */
   startSensors(): Promise<boolean>
+  sensorsInfo(): Promise<SensorsInfo>
+  /** Instala/atualiza o leitor de sensores do Xodó (pede administrador uma vez). */
+  enableSensors(): Promise<SensorsInfo>
+  disableSensors(): Promise<SensorsInfo>
   isPackaged(): Promise<boolean>
   /** Liga/desliga a leitura rápida (5 s) enquanto a aba Processos está aberta nesta janela. */
   watchProcesses(on: boolean): Promise<void>

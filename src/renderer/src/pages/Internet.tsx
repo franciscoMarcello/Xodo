@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useLoad, useSettings } from '../hooks'
-import { dateTime, num, shortDate } from '../format'
+import { dateTime, num, shortDate, timeTicks } from '../format'
 import { ChartTip, Legend, Tile } from '../components'
 
 const mbps = (v: number) => `${num(v, v < 10 ? 1 : 0)} Mb/s`
@@ -40,7 +40,7 @@ export default function InternetPage() {
               <ResponsiveContainer>
                 <LineChart data={ok.map((r) => ({ t: r.time, Download: r.down, Upload: r.up }))} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
                   <CartesianGrid stroke="var(--grid)" vertical={false} />
-                  <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tickFormatter={(t) => shortDate(t)} stroke="var(--axis)" tick={{ fill: 'var(--muted)', fontSize: 12 }} />
+                  <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} ticks={timeTicks(ok[0].time, ok[ok.length - 1].time, 24)} tickFormatter={(t) => shortDate(t)} stroke="var(--axis)" tick={{ fill: 'var(--muted)', fontSize: 12 }} />
                   <YAxis tickFormatter={(v) => `${v}`} unit=" Mb/s" width={80} stroke="var(--axis)" tick={{ fill: 'var(--muted)', fontSize: 12 }} />
                   <Tooltip content={<ChartTip fmt={mbps} labelFmt={(l) => dateTime(Number(l))} />} />
                   {contracted > 0 && <ReferenceLine y={contracted} stroke="var(--muted)" strokeDasharray="4 4" />}

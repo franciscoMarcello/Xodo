@@ -62,7 +62,7 @@ function Now({ ignore }: { ignore: (name: string) => void }) {
       {!s.game ? (
         <div className="card"><b>Nenhum jogo aberto.</b> <span className="muted">Abra um jogo e a análise de gargalo aparece aqui em uns 20 segundos. Se o seu jogo não for detectado, adicione a pasta dele na aba Sessões.</span></div>
       ) : !s.lhm || s.gpu.load == null ? (
-        <div className="banner"><b>Jogando {s.game}</b>, mas sem o uso da placa de vídeo não dá para saber onde está o gargalo. Abra o LibreHardwareMonitor (veja em Ajustes).</div>
+        <div className="banner"><b>Jogando {s.game}</b>, mas sem o uso da placa de vídeo não dá para saber onde está o gargalo. Ative os sensores em Ajustes.</div>
       ) : !bn ? (
         <div className="card"><b>Jogando {s.game}.</b> <span className="muted">Juntando 20 segundos de leituras…</span></div>
       ) : (

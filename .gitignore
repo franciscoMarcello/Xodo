@@ -3,3 +3,5 @@ out/
 dist/
 release/
 *.log
+sensors-helper/lib/
+resources/sensores/

@@ -2,8 +2,8 @@ import os from 'node:os'
 import { execFile } from 'node:child_process'
 import type { RawStatus } from '../shared/types'
 
-// Leituras do sistema. CPU e RAM vêm do Node; rede vem do `netstat -e`; GPU, temperaturas e potência vêm do
-// servidor web do LibreHardwareMonitor (Options > Remote Web Server), que precisa estar aberto como administrador.
+// Leituras do sistema. CPU e RAM vêm do Node; rede vem do `netstat -e`; GPU, temperaturas e potência vêm do leitor
+// de sensores do Xodó (sensors-helper, porta 47085) ou, sem ele, do servidor web do LibreHardwareMonitor (mesmo formato).
 
 let lastCpu = os.cpus()
 /**
@@ -42,7 +42,7 @@ async function netSpeed(): Promise<{ down: number; up: number }> {
   return { down: diff(n.rx, prev.rx) / secs, up: diff(n.tx, prev.tx) / secs }
 }
 
-interface LhmNode { Text: string; Value?: string; ImageURL?: string; SensorId?: string; Children?: LhmNode[] }
+interface LhmNode { Text: string; Value?: string; ImageURL?: string; SensorId?: string; Children?: LhmNode[]; Xodo?: string; Admin?: boolean }
 
 /** "45,3 °C", "1.234,5 W" ou "12.5 %" -> número. */
 export function lhmNumber(v?: string): number | null {
@@ -99,20 +99,34 @@ export function parseLhm(root: LhmNode): Lhm {
   }
 }
 
-/** Última resposta inteira do LibreHardwareMonitor (discos e outros sensores são lidos dela sob demanda, sem nova leitura). */
+/** Última resposta inteira dos sensores (discos e outros sensores são lidos dela sob demanda, sem nova leitura). */
 let lastRoot: LhmNode | null = null
+let lastParsed: Lhm | null = null
 export const lastLhmRoot = () => lastRoot
 
-async function lhm(url: string): Promise<Lhm | null> {
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(1500) })
-    if (!res.ok) { lastRoot = null; return null }
-    lastRoot = await res.json() as LhmNode
-    return parseLhm(lastRoot)
-  } catch { lastRoot = null; return null }
+export const HELPER_URL = 'http://127.0.0.1:47085/data.json'
+
+/** De onde vêm os sensores agora (para os Ajustes explicarem o que falta). */
+export function sensorSource() {
+  const source = !lastRoot ? null : lastRoot.Xodo ? 'xodo' as const : 'lhm' as const
+  return { source, admin: source === 'xodo' ? !!lastRoot?.Admin : null, cpuTemp: lastParsed?.cpuTemp != null }
 }
 
-/** Nome da placa de vídeo pelo Windows (para quando o LibreHardwareMonitor não está aberto). Lido uma vez. */
+async function fetchRoot(url: string): Promise<LhmNode | null> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(1500) })
+    return res.ok ? await res.json() as LhmNode : null
+  } catch { return null }
+}
+
+/** Leitor do Xodó primeiro; sem ele (porta fechada responde na hora), o LibreHardwareMonitor. */
+async function lhm(url: string): Promise<Lhm | null> {
+  lastRoot = await fetchRoot(HELPER_URL) ?? (url && url !== HELPER_URL ? await fetchRoot(url) : null)
+  lastParsed = lastRoot ? parseLhm(lastRoot) : null
+  return lastParsed
+}
+
+/** Nome da placa de vídeo pelo Windows (para quando não há sensores). Lido uma vez. */
 let gpuName = 'GPU'
 execFile('powershell', ['-NoProfile', '-Command', '(Get-CimInstance Win32_VideoController | Where-Object { $_.Name -notmatch "Basic|Virtual|Remote" } | Select-Object -First 1).Name'],
   { windowsHide: true, timeout: 15_000 }, (err, out) => { if (!err && out.trim()) gpuName = out.trim() })

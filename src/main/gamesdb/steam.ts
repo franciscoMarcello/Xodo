@@ -23,13 +23,17 @@ function steamPath(): Promise<string> {
   }))
 }
 
+/** Pastas das bibliotecas da Steam (a da instalação e as de outros discos). */
+export async function steamLibraries(): Promise<string[]> {
+  try {
+    const vdf = await fs.promises.readFile(path.join(await steamPath(), 'steamapps', 'libraryfolders.vdf'), 'utf8')
+    return [...vdf.matchAll(/"path"\s+"([^"]+)"/g)].map((m) => m[1].replace(/\\\\/g, '\\'))
+  } catch { return [] }
+}
+
 export async function installedGames(): Promise<SteamGame[]> {
-  const root = await steamPath()
-  let vdf = ''
-  try { vdf = fs.readFileSync(path.join(root, 'steamapps', 'libraryfolders.vdf'), 'utf8') } catch { return [] }
-  const libs = [...vdf.matchAll(/"path"\s+"([^"]+)"/g)].map((m) => m[1].replace(/\\\\/g, '\\'))
   const games: SteamGame[] = []
-  for (const lib of libs) {
+  for (const lib of await steamLibraries()) {
     let files: string[] = []
     try { files = fs.readdirSync(path.join(lib, 'steamapps')).filter((f) => /^appmanifest_\d+\.acf$/.test(f)) } catch { continue }
     for (const f of files) {

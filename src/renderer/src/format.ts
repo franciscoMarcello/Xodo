@@ -18,6 +18,18 @@ export const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency',
 export const dateTime = (t: number) => new Date(t).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 export const shortDate = (t: number | string) => new Date(typeof t === 'string' ? t + 'T12:00' : t).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
 
+/**
+ * Marcas do eixo do tempo em horas redondas (a cada `hours`) ou dias à meia-noite (24).
+ * Sem elas, o recharts com scale="time" põe uma marca em cada ponto e as datas se sobrepõem.
+ */
+export function timeTicks(first: number, last: number, hours: number): number[] {
+  const d = new Date(first); d.setMinutes(0, 0, 0)
+  d.setHours(hours >= 24 ? 24 : Math.floor(d.getHours() / hours) * hours + hours) // próxima marca depois do primeiro ponto
+  const out: number[] = []
+  for (; d.getTime() <= last; hours >= 24 ? d.setDate(d.getDate() + 1) : d.setHours(d.getHours() + hours)) out.push(d.getTime())
+  return out.length >= 2 ? out : [first, last] // tudo no mesmo dia: sem meia-noite no meio, marca as pontas
+}
+
 export function duration(ms: number): string {
   const m = Math.round(ms / 60000); const h = Math.floor(m / 60)
   return h ? `${h} h ${String(m % 60).padStart(2, '0')} min` : `${m} min`

@@ -4,9 +4,9 @@ import type { Api, ProcessList, Status } from '../shared/types'
 // Ponte entre a interface e o processo principal: cada função vira uma chamada IPC com o mesmo nome.
 
 const names = [
-  'getSettings', 'saveSettings', 'disks', 'folderSizes', 'bigFiles', 'pickFolder', 'showInFolder', 'trash', 'programs', 'openAppsSettings',
+  'getSettings', 'saveSettings', 'disks', 'folderSizes', 'bigFiles', 'diskTree', 'pickFolder', 'showInFolder', 'trash', 'programs', 'openAppsSettings',
   'tempInfo', 'cleanTemp', 'organizerPreview', 'organizerRunNow', 'organizerLog', 'organizerUndo', 'speedHistory', 'speedRun', 'energy',
-  'gameSessions', 'toggleWidget', 'startSensors', 'isPackaged', 'watchProcesses', 'killProcess', 'selfWeight',
+  'gameSessions', 'toggleWidget', 'startSensors', 'sensorsInfo', 'enableSensors', 'disableSensors', 'isPackaged', 'watchProcesses', 'killProcess', 'selfWeight',
   'alerts', 'muteAlert', 'unmuteAlert', 'history', 'machine', 'exportPdf', 'openPath',
   'installedGames', 'searchGames', 'canRun', 'drivers', 'checkDrivers', 'openWindowsUpdate', 'openLink',
   'optimize', 'setStartup', 'setPowerPlan', 'optAction', 'diskHealth', 'crashes', 'gameModeCandidates', 'gameModeLog', 'gameModeTest', 'lagTest',

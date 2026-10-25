@@ -3,7 +3,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
 import { execFile } from 'node:child_process'
-import type { BigFile, Disk, FolderSize, Program, TempInfo } from '../shared/types'
+import type { BigFile, Disk, DiskTree, FolderSize, Program, TempInfo, TreeNode } from '../shared/types'
+import { pruneTree } from './disk-prune'
 
 export async function disks(): Promise<Disk[]> {
   const out: Disk[] = []
@@ -55,6 +56,26 @@ export async function folderSizes(): Promise<FolderSize[]> {
 
 export async function bigFiles(folder: string): Promise<BigFile[]> {
   return (await walk(folder, 30, 30_000)).top
+}
+
+/** Árvore de tamanhos para o mapa do disco. Pastas em sequência, arquivos de cada pasta em paralelo (o stat é o gargalo). */
+export async function diskTree(root: string, limitMs = 120_000): Promise<DiskTree> {
+  const until = Date.now() + limitMs; let done = true; let files = 0
+  async function scan(dir: string, name: string): Promise<TreeNode> {
+    const node: TreeNode = { name, size: 0, children: [] }
+    if (Date.now() > until) { done = false; return node }
+    let entries: fs.Dirent[]
+    try { entries = await fs.promises.readdir(dir, { withFileTypes: true }) } catch { return node }
+    const stats = await Promise.all(entries.filter((e) => e.isFile() && !e.isSymbolicLink()).map(async (e) => {
+      try { return { name: e.name, size: (await fs.promises.stat(path.join(dir, e.name))).size } } catch { return null } // em uso ou sem permissão
+    }))
+    for (const f of stats) if (f) { node.children!.push(f); files++ }
+    for (const e of entries) if (e.isDirectory() && !e.isSymbolicLink()) node.children!.push(await scan(path.join(dir, e.name), e.name))
+    node.size = node.children!.reduce((s, c) => s + c.size, 0)
+    return node
+  }
+  const tree = pruneTree(await scan(root, root))
+  return { root, tree, files, done }
 }
 
 function powershell(script: string, timeout = 30_000): Promise<string> {

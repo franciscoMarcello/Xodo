@@ -1,32 +1,17 @@
-import path from 'node:path'
 import type { Bottleneck, BottleneckKind, GameSession, LagView, RawStatus } from '../shared/types'
 import { appendLine, readLines } from './store'
+import { steamLibraries } from './gamesdb/steam'
+import { exeIndex, gameName } from './games-exes'
 
 // Detecta jogos pelo caminho do executável (pastas das lojas) e grava sessões com tempo jogado e temperaturas.
 // A lista de processos vem do coletor único (processes.ts).
 
 const FILE = 'games.jsonl'
 
-/** Pastas de jogos das lojas: o nome do jogo é a pasta logo depois. */
-const STORES = [
-  /\\steamapps\\common\\([^\\]+)\\/i, /\\Epic Games\\([^\\]+)\\/i, /\\XboxGames\\([^\\]+)\\/i, /\\Riot Games\\([^\\]+)\\/i,
-  /\\GOG Galaxy\\Games\\([^\\]+)\\/i, /\\Ubisoft Game Launcher\\games\\([^\\]+)\\/i, /\\EA Games\\([^\\]+)\\/i, /\\Amazon Games\\Library\\([^\\]+)\\/i,
-]
-/** Executáveis que ficam nessas pastas mas não são o jogo (launchers, anti-cheat, instaladores, crash reporters). */
-const NOT_GAME = /crash|anticheat|easyanticheat|beservice|battleye|redist|setup|unins|helper|launcher|updater|dxsetup|webhelper|cefprocess|bootstrap|prereq|unitycrash|reporter|vc_redist/i
-/** Pastas das lojas que não são jogos (ferramentas vendidas na Steam, launchers, redistribuíveis). */
-const NOT_FOLDER = /^(Steamworks Shared|Riot Client|Epic Online Services|Launcher|DirectXRedist|Common Redistributables|wallpaper_engine|SteamVR|Lossless Scaling|Soundpad|OBS Studio|Steam Controller Configs)$/i
-
-export function gameName(exe: string, extraFolders: string[], ignored: string[] = []): string | null {
-  if (NOT_GAME.test(path.basename(exe))) return null
-  let name: string | null = null
-  for (const re of STORES) { const m = re.exec(exe); if (m) { name = NOT_FOLDER.test(m[1]) ? null : m[1]; break } }
-  if (!name) for (const f of extraFolders) {
-    const base = f.replace(/[\\/]+$/, '') + '\\'
-    if (exe.toLowerCase().startsWith(base.toLowerCase())) { name = exe.slice(base.length).split('\\')[0] || null; break }
-  }
-  return name && !ignored.includes(name) ? name : null
-}
+/** Jogos da Steam pelo nome do .exe, para os processos que vêm sem caminho (ver games-exes.ts). */
+let byExe = new Map<string, string>()
+let indexedAt = 0
+async function indexGameExes() { indexedAt = Date.now(); byExe = await exeIndex(await steamLibraries()) }
 
 interface Running {
   game: string; exe: string; start: number; lastSeen: number; cpu: number[]; gpu: number[]; gpuLoad: number[]
@@ -59,13 +44,17 @@ export function closeSession(stillRunning = false) {
   appendLine(FILE, s)
 }
 
-/** Recebe os caminhos dos processos abertos (do coletor único) e abre/fecha a sessão de jogo. */
-export function updateGames(paths: (string | null)[], extraFolders: string[], ignored: string[]) {
+/** Recebe os processos abertos (do coletor único) e abre/fecha a sessão de jogo. */
+export function updateGames(procs: { name: string; path: string | null }[], extraFolders: string[], ignored: string[]) {
   // Marcado como "não é jogo" no meio da sessão: descarta sem gravar.
   if (current && ignored.includes(current.game)) current = null
-  if (!paths.length) return // leitura falhou: não fecha a sessão por engano
+  if (!procs.length) return // leitura falhou: não fecha a sessão por engano
   const now = Date.now()
-  const found = paths.map((exe) => exe && { exe, game: gameName(exe, extraFolders, ignored) }).find((x) => x && x.game) as { exe: string; game: string } | undefined
+  if (now - indexedAt > 60 * 60_000) indexGameExes().catch(() => {}) // jogo instalado depois entra em até 1 h
+  const found = procs.map((p) => {
+    const game = p.path ? gameName(p.path, extraFolders, ignored) : byExe.get(p.name.toLowerCase())
+    return game && !ignored.includes(game) ? { exe: p.path ?? `${p.name}.exe`, game } : null
+  }).find((x) => x)
   if (current && found?.game === current.game) { current.lastSeen = now; return }
   closeSession()
   if (found) current = fresh(found.game, found.exe, now)

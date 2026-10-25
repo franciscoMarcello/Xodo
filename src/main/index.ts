@@ -3,7 +3,6 @@ import './migrate'
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron'
 import path from 'node:path'
 import os from 'node:os'
-import { execFile } from 'node:child_process'
 import iconPath from '../../build/icon.png?asset'
 import type { Api, Proc, ProcessList, Settings, Status, WidgetSize } from '../shared/types'
 import { getSettings, saveSettings } from './store'
@@ -25,6 +24,7 @@ import { classify, type BPoint } from './bottleneck'
 import * as steam from './gamesdb/steam'
 import * as drivers from './drivers'
 import * as optimize from './optimize'
+import * as sensorhelper from './sensorhelper'
 import fs from 'node:fs'
 
 // A interface é simples (texto e gráficos 2D): sem aceleração de GPU o painel usa ~40% menos RAM e ~70% menos CPU
@@ -137,7 +137,7 @@ async function tick() {
   } finally { reading = false }
 }
 
-const games = () => { const g = getSettings().games; updateGames(processes.latestProcesses().procs.map((p) => p.path), g.extraFolders, g.ignored) }
+const games = () => { const g = getSettings().games; updateGames(processes.latestProcesses().procs, g.extraFolders, g.ignored) }
 
 /** PIDs do próprio painel (não podem ser finalizados pela aba Processos). */
 const ownPids = () => new Set(app.getAppMetrics().map((m) => m.pid))
@@ -163,12 +163,6 @@ function onProcesses() {
 /** No app instalado, registra (ou tira) a abertura escondida com o Windows. Em desenvolvimento não mexe. */
 function applyLogin(s: Settings) { if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: s.startWithWindows, args: ['--hidden'] }) }
 
-/**
- * O LibreHardwareMonitor precisa de administrador, então ele roda por uma tarefa agendada ("Executar com privilégios
- * mais altos") criada uma vez. Rodar a tarefa não pede permissão de novo.
- */
-const LHM_TASK = 'LibreHardwareMonitor'
-const startSensors = () => new Promise<boolean>((resolve) => execFile('schtasks', ['/Run', '/TN', LHM_TASK], { windowsHide: true, timeout: 10_000 }, (err) => resolve(!err)))
 
 // --- API para a interface ---
 
@@ -190,6 +184,7 @@ const handlers: Handlers = {
   },
   disks: disk.disks,
   folderSizes: disk.folderSizes,
+  diskTree: (folder) => disk.diskTree(folder),
   bigFiles: async (folder) => { const list = await disk.bigFiles(folder); list.forEach((f) => listedFiles.add(f.path)); return list },
   pickFolder: async () => { const opts = { properties: ['openDirectory' as const] }; const r = await (main ? dialog.showOpenDialog(main, opts) : dialog.showOpenDialog(opts)); return r.canceled ? null : r.filePaths[0] },
   showInFolder: async (p) => shell.showItemInFolder(p),
@@ -207,7 +202,10 @@ const handlers: Handlers = {
   energy: async () => { flushEnergy(); return energySummary(getSettings().energy.tariff) },
   gameSessions: async () => sessions(),
   toggleWidget: async () => { setWidget(!widget); return !!widget },
-  startSensors,
+  startSensors: sensorhelper.start,
+  sensorsInfo: sensorhelper.info,
+  enableSensors: sensorhelper.enable,
+  disableSensors: sensorhelper.disable,
   isPackaged: async () => app.isPackaged,
   killProcess: async (pid) => { processes.kill(pid, ownPids()) },
   /** Peso do próprio painel lido do Electron (sem abrir programa nenhum). privateBytes em KB; CPU desde a última consulta. */
@@ -256,9 +254,9 @@ const handlers: Handlers = {
   setPowerPlan: (guid) => optimize.setPowerPlan(guid),
   optAction: (kind) => optimize.action(kind),
   openWindowsUpdate: async () => { await shell.openExternal('ms-settings:windowsupdate-optionalupdates') },
-  /** Só links de fabricantes de drivers (vêm da verificação, não de texto livre). */
+  /** Só links de fabricantes de drivers (vêm da verificação, não de texto livre) e do driver PawnIO (sensores). */
   openLink: async (url) => {
-    if (!/^https:\/\/(www\.amd\.com|www\.nvidia\.com|www\.intel\.com\.br)\//.test(url) && !url.startsWith('ms-settings:')) throw new Error('Link não permitido.')
+    if (!/^https:\/\/(www\.amd\.com|www\.nvidia\.com|www\.intel\.com\.br|pawnio\.eu)\//.test(url) && !url.startsWith('ms-settings:')) throw new Error('Link não permitido.')
     await shell.openExternal(url)
   },
 }
@@ -287,8 +285,8 @@ else {
     applyWidget()
     // Mudou resolução, escala ou monitor principal: reposiciona o overlay no canto certo.
     screen.on('display-metrics-changed', applyWidget); screen.on('display-added', applyWidget); screen.on('display-removed', applyWidget)
-    // Sensores fora do ar alguns segundos depois de abrir: tenta iniciar o LibreHardwareMonitor uma vez.
-    setTimeout(() => { if (last && !last.lhm) startSensors() }, 8000)
+    // Sensores fora do ar alguns segundos depois de abrir: tenta iniciar o leitor uma vez (pela tarefa, sem UAC).
+    setTimeout(() => { if (last && !last.lhm) sensorhelper.start() }, 8000)
     organizer.startOrganizer(s.organizer)
     setInterval(tick, 2000); tick()
     processes.startCollector(onProcesses)

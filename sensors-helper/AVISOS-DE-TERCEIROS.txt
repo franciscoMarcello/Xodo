@@ -1,0 +1,35 @@
+Xodó Sensores (XodoSensores.exe) - avisos de terceiros
+=====================================================
+
+O XodoSensores.exe é código do Xodó (licença MIT, veja o LICENSE do projeto) e usa as bibliotecas
+abaixo sem modificação, copiadas do release oficial do LibreHardwareMonitor 0.9.6:
+https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/tag/v0.9.6
+
+O código-fonte de cada biblioteca está disponível nos endereços indicados.
+
+LibreHardwareMonitorLib.dll 0.9.6
+  Licença: Mozilla Public License 2.0 (MPL-2.0.txt)
+  Código-fonte: https://github.com/LibreHardwareMonitor/LibreHardwareMonitor
+
+BlackSharp.Core.dll 1.0.7
+  Licença: Mozilla Public License 2.0 (MPL-2.0.txt)
+  Código-fonte: https://github.com/Blacktempel/BlackSharp
+
+DiskInfoToolkit.dll 1.1.2
+  Licença: Mozilla Public License 2.0 (MPL-2.0.txt)
+  Código-fonte: https://github.com/Blacktempel/DiskInfoToolkit
+
+RAMSPDToolkit-NDD.dll 1.4.2
+  Licença: Mozilla Public License 2.0 (MPL-2.0.txt)
+  Código-fonte: https://github.com/Blacktempel/RAMSPDToolkit
+
+HidSharp.dll 2.6.4
+  Copyright 2010-2025 James F. Bellinger <http://software.seekye.com/hidsharp>
+  Licença: Apache License 2.0 (Apache-2.0.txt)
+
+System.Buffers.dll, System.Memory.dll, System.Numerics.Vectors.dll, System.Runtime.CompilerServices.Unsafe.dll
+  Copyright (c) .NET Foundation and Contributors
+  Licença: MIT (MIT-dotnet.txt)
+  Código-fonte: https://github.com/dotnet/maintenance-packages
+
+A temperatura da CPU usa o driver PawnIO (https://pawnio.eu), que não vem junto com o Xodó.

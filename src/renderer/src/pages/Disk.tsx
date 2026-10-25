@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLoad, message } from '../hooks'
 import { bytes, num } from '../format'
 import { Heat, Meter } from '../components'
-import type { BigFile } from '../../../shared/types'
+import { squarify, type Rect } from '../treemap'
+import type { BigFile, DiskTree, TreeNode } from '../../../shared/types'
 
 function Disks() {
   const { data } = useLoad(useCallback(() => window.api.disks(), []))
@@ -104,6 +105,100 @@ function BigFiles() {
   )
 }
 
+const KINDS: [string, string, RegExp][] = [
+  ['Vídeos', '#d95926', /^(mp4|mkv|avi|mov|wmv|webm|m4v|ts)$/],
+  ['Imagens', '#199e70', /^(jpe?g|png|gif|bmp|webp|heic|psd|tiff?|raw|cr2|nef|dng)$/],
+  ['Áudio', '#a855c7', /^(mp3|wav|flac|aac|ogg|m4a|wma|opus)$/],
+  ['Jogos', '#3987e5', /^(pak|vpk|upk|ucas|utoc|bundle|assets|resource|bank|wem|forge|big|arc|dat|bin|blob)$/],
+  ['Programas', '#c9a227', /^(exe|dll|sys|msi|msix|appx|cab|so|node)$/],
+  ['Compactados', '#d0647f', /^(zip|rar|7z|gz|tar|iso|img|vhdx?|wim|esd)$/],
+  ['Documentos', '#5aa9b8', /^(pdf|docx?|xlsx?|pptx?|txt|odt|csv|epub)$/],
+]
+const OTHER = '#7a7873'
+const color = (name: string) => { const ext = name.split('.').pop()!.toLowerCase(); return KINDS.find((k) => k[2].test(ext))?.[1] ?? OTHER }
+const join = (a: string, b: string) => (a.endsWith('\\') ? a + b : `${a}\\${b}`)
+
+type Box = Rect & { node: TreeNode; path: string; folder: boolean }
+/** Desce pelas pastas enquanto houver espaço: cada pasta ganha uma faixa de título de 16 px e os filhos vão dentro. */
+function boxes(node: TreeNode, r: Rect, path: string, out: Box[] = []): Box[] {
+  for (const b of squarify(node.children ?? [], r)) {
+    if (b.w < 2 || b.h < 2) continue
+    const p = join(path, b.item.name); const folder = !!b.item.children
+    out.push({ ...b, node: b.item, path: p, folder })
+    if (folder && b.w > 24 && b.h > 30) boxes(b.item, { x: b.x + 2, y: b.y + 16, w: b.w - 4, h: b.h - 18 }, p, out)
+  }
+  return out
+}
+
+function DiskMap() {
+  const d = useLoad(useCallback(() => window.api.disks(), []))
+  const [scan, setScan] = useState<DiskTree | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [trail, setTrail] = useState<TreeNode[]>([])
+  const [width, setWidth] = useState(0)
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = box.current; if (!el) return
+    const ro = new ResizeObserver(() => setWidth(el.clientWidth)); ro.observe(el); return () => ro.disconnect()
+  }, [scan])
+  async function run(folder: string | null) {
+    if (!folder) return
+    setBusy(folder)
+    try { const t = await window.api.diskTree(folder); setScan(t); setTrail([t.tree]) } finally { setBusy(null) }
+  }
+  const view = trail[trail.length - 1]
+  const viewPath = trail.slice(1).reduce((p, n) => join(p, n.name), scan?.root ?? '')
+  const HEIGHT = 440
+  const list = useMemo(() => (view && width ? boxes(view, { x: 0, y: 0, w: width, h: HEIGHT }, viewPath) : []), [view, width, viewPath])
+  return (
+    <div className="card">
+      <div className="row between">
+        <div><h2 style={{ marginBottom: 4 }}>Mapa do disco</h2><span className="muted">{busy ? `Escaneando ${busy}… pode levar um ou dois minutos num disco inteiro.` : scan ? `${num(scan.files)} arquivos · ${bytes(scan.tree.size)}${scan.done ? '' : ' (parou em 2 minutos, mapa incompleto)'}` : 'Cada bloco é um arquivo, do tamanho do espaço que ocupa. Clique numa pasta para entrar nela.'}</span></div>
+        <div className="row">
+          {d.data?.map((x) => <button key={x.mount} className="btn" disabled={!!busy} onClick={() => run(x.mount)}>{x.mount.slice(0, 2)}</button>)}
+          <button className="btn" disabled={!!busy} onClick={async () => run(await window.api.pickFolder())}>Outra pasta…</button>
+        </div>
+      </div>
+      {scan && view && (
+        <>
+          <div className="row" style={{ margin: '12px 0 8px', flexWrap: 'wrap', gap: 4 }}>
+            {trail.map((n, i) => <span key={i}>{i > 0 && <span className="muted"> › </span>}<button className="btn small" disabled={i === trail.length - 1} onClick={() => setTrail(trail.slice(0, i + 1))}>{i ? n.name : scan.root}</button></span>)}
+            <button className="btn small" style={{ marginLeft: 'auto' }} onClick={() => window.api.showInFolder(viewPath)}>Abrir no Explorer</button>
+          </div>
+          <div ref={box} style={{ position: 'relative', height: HEIGHT, overflow: 'hidden', borderRadius: 6, background: 'var(--surface-2)' }}>
+            {list.map((b) => (
+              <div key={b.path} title={`${b.path}\n${bytes(b.node.size)} · ${num((100 * b.node.size) / scan.tree.size, 1)}% do total`}
+                onClick={b.folder ? (e) => { e.stopPropagation(); setTrail(trailTo(trail, b.path, viewPath)) } : undefined}
+                onDoubleClick={b.node.more ? undefined : (e) => { e.stopPropagation(); window.api.showInFolder(b.path) }}
+                style={{
+                  position: 'absolute', left: b.x, top: b.y, width: b.w, height: b.h, boxSizing: 'border-box', overflow: 'hidden', whiteSpace: 'nowrap',
+                  fontSize: 11, lineHeight: '14px', padding: '1px 3px', cursor: b.folder ? 'zoom-in' : 'default',
+                  background: b.folder ? 'var(--surface)' : b.node.more ? 'var(--grid)' : color(b.node.name),
+                  border: '1px solid var(--page)', color: b.folder || b.node.more ? 'var(--ink-2)' : '#fff',
+                }}>
+                {b.w > 40 && b.h > 13 && `${b.node.name} (${bytes(b.node.size)})`}
+              </div>
+            ))}
+          </div>
+          <div className="row" style={{ flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
+            {[...KINDS.map((k) => [k[0], k[1]]), ['Outros', OTHER]].map(([n, c]) => <span key={n} className="small muted"><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: c, marginRight: 4 }} />{n}</span>)}
+            <span className="small muted" style={{ marginLeft: 'auto' }}>Dois cliques num bloco mostra o arquivo no Explorer.</span>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/** Pasta clicada lá no fundo do mapa: refaz a trilha de nós da visão atual até ela. */
+function trailTo(trail: TreeNode[], target: string, viewPath: string): TreeNode[] {
+  const out = [...trail]; let node = trail[trail.length - 1]
+  for (const name of target.slice(join(viewPath, '').length).split('\\')) {
+    node = node.children!.find((c) => c.name === name)!; out.push(node)
+  }
+  return out
+}
+
 function Programs() {
   const p = useLoad(useCallback(() => window.api.programs(), []), false)
   const [all, setAll] = useState(false)
@@ -165,6 +260,7 @@ export default function DiskPage() {
       <p className="sub">Espaço livre, o que ocupa mais e limpeza de temporários. Nada é apagado sem você confirmar.</p>
       <Disks />
       <Health />
+      <DiskMap />
       <Temp />
       <Folders />
       <BigFiles />

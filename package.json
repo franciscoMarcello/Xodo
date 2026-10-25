@@ -1,7 +1,7 @@
 {
   "name": "painel-pc",
   "productName": "Xodó",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "private": true,
   "description": "Xodó: cuida do seu PC. Status, alertas, travamentos, jogos, drivers, limpeza, internet e energia.",
   "author": "Francisco Marcello",
@@ -11,8 +11,9 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "dist": "electron-vite build && electron-builder --win",
-    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/main/alerts/detectors.test.mts src/main/history/aggregate.test.mts src/main/gamesdb/gamesdb.test.mts src/main/bottleneck.test.mts src/main/drivers/drivers.test.mts src/main/optimize/optimize.test.mts src/main/diskhealth.test.mts src/main/crashes/crashes.test.mts src/main/netlag/netlag.test.mts src/main/gamemode.test.mts"
+    "sensores": "powershell -NoProfile -ExecutionPolicy Bypass -File sensors-helper/build.ps1",
+    "dist": "npm run sensores && electron-vite build && electron-builder --win",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/main/alerts/detectors.test.mts src/main/history/aggregate.test.mts src/main/gamesdb/gamesdb.test.mts src/main/bottleneck.test.mts src/main/drivers/drivers.test.mts src/main/optimize/optimize.test.mts src/main/diskhealth.test.mts src/main/crashes/crashes.test.mts src/main/netlag/netlag.test.mts src/main/gamemode.test.mts src/main/games-exes.test.mts src/main/disk-prune.test.mts src/renderer/src/treemap.test.mts src/renderer/src/format.test.mts"
   },
   "build": {
     "appId": "br.painel-pc",
@@ -26,6 +27,12 @@
     "files": [
       "out/**/*"
     ],
+    "extraResources": [
+      {
+        "from": "resources/sensores",
+        "to": "sensores"
+      }
+    ],
     "win": {
       "target": "nsis",
       "icon": "build/icon.png"
@@ -35,7 +42,8 @@
       "perMachine": false,
       "runAfterFinish": true,
       "shortcutName": "Xodó",
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh"
     }
   },
   "dependencies": {

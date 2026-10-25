@@ -45,9 +45,20 @@ Fechar a janela só esconde o painel na bandeja. Para sair: botão direito no í
 
 ## Sensores
 
-Temperaturas, uso da GPU e potência vêm do servidor web do [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)
-(`http://127.0.0.1:8085/data.json`). Ele precisa rodar como administrador. Sem ele, o painel funciona com CPU, RAM e rede,
-e estima o consumo pelo uso.
+Temperaturas, uso da GPU, potência, FPS e saúde dos discos vêm do leitor próprio do Xodó (`sensors-helper/`): um
+programa pequeno em C#, sem janela, que usa a [LibreHardwareMonitorLib](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)
+só para CPU, GPU e discos e responde em `http://127.0.0.1:47085/data.json` no mesmo formato do LibreHardwareMonitor.
+Ele só lê o hardware quando o Xodó pede (CPU e GPU no máximo 1x por segundo, discos 1x por minuto). Medido: ~7 ms/s de CPU
+e ~38 MB, contra ~30 ms/s e ~72 MB do LibreHardwareMonitor completo.
+
+- `npm run sensores` compila com o `csc.exe` que já vem no Windows (.NET Framework 4.8). As bibliotecas vêm do release
+  oficial 0.9.6 (conferidas por hash) e vão para `resources/sensores`, que o instalador leva junto.
+- Em **Ajustes > Sensores > Ativar**, o Windows pede administrador uma vez: o leitor é copiado para
+  `C:\Program Files\Xodo\Sensores` (só o administrador altera) e uma tarefa agendada o abre no login, já elevado.
+  Desativar (ou desinstalar o Xodó) remove os dois.
+- A temperatura da CPU precisa do driver [PawnIO](https://pawnio.eu) instalado.
+- Sem o leitor, o Xodó lê o LibreHardwareMonitor (Remote Web Server, endereço configurável) e, sem nenhum dos dois,
+  funciona com CPU, RAM e rede e estima o consumo pelo uso.
 
 ## Dados
 
@@ -63,5 +74,7 @@ Ficam em `%APPDATA%\Xodó` (quem vem do antigo "Painel do PC" tem os dados copia
 
 ## Licença
 
-MIT (veja `LICENSE`). O LibreHardwareMonitor não vem junto: é um programa separado (licença MPL-2.0) que o Xodó só lê
-pelo servidor web local.
+MIT (veja `LICENSE`). O leitor de sensores inclui, sem modificação, a LibreHardwareMonitorLib e bibliotecas da
+Blacktempel (MPL-2.0), a HidSharp (Apache-2.0) e bibliotecas do .NET (MIT). Os avisos, os links do código-fonte e os
+textos das licenças estão em `sensors-helper/AVISOS-DE-TERCEIROS.txt` e `sensors-helper/licencas/`, e vão junto no
+instalador.

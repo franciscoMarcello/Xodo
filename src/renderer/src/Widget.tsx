@@ -48,7 +48,7 @@ function Medium({ s, fixed }: { s: Status; fixed: boolean }) {
       <Line k="GPU" load={s.gpu.load} value={s.gpu.load == null && s.gpu.temp == null ? 'sem sensor' : `${pct(s.gpu.load)} · ${temp(s.gpu.temp)}`} />
       <Line k="RAM" load={(100 * s.ram.used) / s.ram.total} value={bytes(s.ram.used)} />
       <div className="line"><span className="k">REDE</span><span className="small">↓ {rate(s.net.down)}</span><span className="v small">↑ {rate(s.net.up)}</span></div>
-      {s.game ? <div className="game">🎮 {s.game}{s.gpu.fps != null && ` · ${Math.round(s.gpu.fps)} FPS`}{s.bottleneck && ` · gargalo: ${WIDGET_BN[s.bottleneck.kind]}`}</div> : !s.lhm && <div className="muted small">Sem sensores: abra o LibreHardwareMonitor</div>}
+      {s.game ? <div className="game">🎮 {s.game}{s.gpu.fps != null && ` · ${Math.round(s.gpu.fps)} FPS`}{s.bottleneck && ` · gargalo: ${WIDGET_BN[s.bottleneck.kind]}`}</div> : !s.lhm && <div className="muted small">Sem sensores: ative em Ajustes</div>}
     </div>
   )
 }
@@ -65,7 +65,7 @@ function Large({ s, fixed }: { s: Status; fixed: boolean }) {
       <Line k="RAM" load={(100 * s.ram.used) / s.ram.total} value={bytes(s.ram.used)} />
       <div className="line"><span className="k">REDE</span><span className="small">↓ {rate(s.net.down)}</span><span className="v small">↑ {rate(s.net.up)}</span></div>
       <div className="line"><span className="k">FPS</span><span className="big-fps">{s.gpu.fps != null ? Math.round(s.gpu.fps) : '–'}</span><span className="v small">{s.cpu.power != null || s.gpu.power != null ? `${Math.round((s.cpu.power ?? 0) + (s.gpu.power ?? 0))} W CPU+GPU` : ''}</span></div>
-      {s.game ? <div className="game">🎮 {s.game}{s.bottleneck && ` · gargalo: ${WIDGET_BN[s.bottleneck.kind]}`}</div> : <div className="muted small">{s.lhm ? 'Nenhum jogo aberto' : 'Sem sensores: abra o LibreHardwareMonitor'}</div>}
+      {s.game ? <div className="game">🎮 {s.game}{s.bottleneck && ` · gargalo: ${WIDGET_BN[s.bottleneck.kind]}`}</div> : <div className="muted small">{s.lhm ? 'Nenhum jogo aberto' : 'Sem sensores: ative em Ajustes'}</div>}
     </div>
   )
 }

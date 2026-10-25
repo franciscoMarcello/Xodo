@@ -22,17 +22,12 @@ export function Meter({ value }: { value: number }) {
   return <div className={`meter ${value > 95 ? 'crit' : value > 85 ? 'warn' : ''}`}><div style={{ width: `${Math.min(100, value)}%` }} /></div>
 }
 
-/** Aviso para quando o LibreHardwareMonitor não está respondendo. */
+/** Aviso para quando os sensores não estão respondendo. */
 export function LhmBanner({ onSettings }: { onSettings?: () => void }) {
   return (
     <div className="banner">
       <strong>Sem temperaturas, uso da GPU e potência</strong>
-      <div className="muted small">O Windows não informa esses dados para programas comuns. Eles vêm do LibreHardwareMonitor (gratuito e de código aberto):</div>
-      <ol className="small">
-        <li>Abra o LibreHardwareMonitor <b>como administrador</b>.</li>
-        <li>No menu <b>Options</b>, marque <b>Remote Web Server &gt; Run</b> (porta 8085).</li>
-        <li>Opcional: em <b>Options</b>, marque <b>Start Minimized</b> e <b>Run On Windows Startup</b>.</li>
-      </ol>
+      <div className="muted small">O Windows só entrega esses dados para programas com permissão de administrador. Em <b>Ajustes &gt; Sensores</b>, clique em <b>Ativar sensores</b>: o Windows pede a permissão uma vez e depois eles abrem sozinhos com o PC.</div>
       {onSettings && <button className="btn small" style={{ marginTop: 8 }} onClick={onSettings}>Ver ajustes</button>}
     </div>
   )

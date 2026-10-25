@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useLoad } from '../hooks'
-import { num } from '../format'
+import { num, timeTicks } from '../format'
 import { Heat, Legend, Tile } from '../components'
 import type { HistPoint, HistRange, Metric } from '../../../shared/types'
 
@@ -51,7 +51,7 @@ function Chart({ title, data, series, unit, domain, range, bucket }: { title: st
         <ResponsiveContainer>
           <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: -8 }}>
             <CartesianGrid stroke="var(--grid)" vertical={false} />
-            <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tickFormatter={fmtTime(range)} stroke="var(--axis)" tick={{ fill: 'var(--muted)', fontSize: 12 }} minTickGap={40} />
+            <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} ticks={timeTicks(data[0].t, data[data.length - 1].t, range === '24h' ? 3 : 24)} tickFormatter={fmtTime(range)} stroke="var(--axis)" tick={{ fill: 'var(--muted)', fontSize: 12 }} minTickGap={40} />
             <YAxis domain={domain ?? ['auto', 'auto']} tickFormatter={(v) => `${v}${unit}`} width={58} stroke="var(--axis)" tick={{ fill: 'var(--muted)', fontSize: 12 }} />
             <Tooltip content={<Tip series={shown} unit={unit} range={range} bucket={bucket} />} />
             {shown.map(([m, name, color]) => <Line key={m} dataKey={m} name={name} stroke={color} strokeWidth={2} dot={false} connectNulls={false} isAnimationActive={false} />)}
